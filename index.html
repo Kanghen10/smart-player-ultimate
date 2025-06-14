@@ -20,7 +20,7 @@
       justify-content: center;
       align-items: center;
     }
-    video {
+    video, img {
       width: 100%;
       height: 100%;
       object-fit: contain;
@@ -30,7 +30,8 @@
 </head>
 <body>
   <div id="videoContainer">
-    <video id="player" muted playsinline controls autoplay></video>
+    <video id="player" muted playsinline controls autoplay style="display:none;"></video>
+    <img id="mjpegPlayer" alt="MJPEG Stream" style="display:none;" />
   </div>
 
   <script src="https://cdn.jsdelivr.net/npm/hls.js@1"></script>
@@ -46,9 +47,9 @@
       return 'unknown';
     }
 
-    function autoFullscreen(video) {
-      const reqFS = video.requestFullscreen || video.webkitRequestFullscreen || video.msRequestFullscreen;
-      if (reqFS) reqFS.call(video);
+    function autoFullscreen(element) {
+      const reqFS = element.requestFullscreen || element.webkitRequestFullscreen || element.msRequestFullscreen;
+      if (reqFS) reqFS.call(element);
     }
 
     window.onload = function () {
@@ -56,13 +57,16 @@
       if (!hash) return alert('Tambahkan URL video setelah tanda # di URL');
 
       const video = document.getElementById('player');
+      const mjpeg = document.getElementById('mjpegPlayer');
       const type = getVideoType(hash);
 
       if (type === 'hls' && Hls.isSupported()) {
+        video.style.display = 'block';
         const hls = new Hls();
         hls.loadSource(hash);
         hls.attachMedia(video);
       } else if (type === 'flv' && flvjs.isSupported()) {
+        video.style.display = 'block';
         const flvPlayer = flvjs.createPlayer({
           type: 'flv',
           url: hash
@@ -73,7 +77,13 @@
         flvPlayer.attachMediaElement(video);
         flvPlayer.load();
         flvPlayer.play();
+      } else if (type === 'mjpeg') {
+        mjpeg.style.display = 'block';
+        mjpeg.src = hash;
+        autoFullscreen(mjpeg);
+        return;
       } else {
+        video.style.display = 'block';
         video.src = hash;
       }
 
