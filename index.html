@@ -1,96 +1,90 @@
 <!DOCTYPE html>
 <html lang="id">
 <head>
-  <meta charset="UTF-8">
-  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
   <title>Smart Player Ultimate</title>
-  <link href="https://vjs.zencdn.net/7.20.3/video-js.css" rel="stylesheet">
   <style>
     html, body {
       margin: 0;
       padding: 0;
       height: 100%;
       background: black;
+      overflow: hidden;
     }
     #videoContainer {
-      width: 100%;
-      height: 100%;
+      width: 100vw;
+      height: 100vh;
+      background: black;
       display: flex;
       justify-content: center;
       align-items: center;
-      background-color: black;
     }
     video {
-      width: 100% !important;
-      height: 100% !important;
+      width: 100%;
+      height: 100%;
       object-fit: contain;
-      background-color: black;
+      background: black;
     }
   </style>
 </head>
 <body>
   <div id="videoContainer">
-    <video id="videoElement" class="video-js vjs-default-skin" controls autoplay muted playsinline></video>
+    <video id="player" muted playsinline controls autoplay></video>
   </div>
 
-  <!-- Library -->
-  <script src="https://vjs.zencdn.net/7.20.3/video.min.js"></script>
+  <script src="https://cdn.jsdelivr.net/npm/hls.js@1"></script>
   <script src="https://cdn.jsdelivr.net/npm/flv.js@1.6.2/dist/flv.min.js"></script>
-
   <script>
-    function getStreamUrlFromHash() {
-      return window.location.hash ? decodeURIComponent(window.location.hash.substring(1)) : null;
+    function getVideoType(url) {
+      const u = url.toLowerCase();
+      if (u.includes('.m3u8')) return 'hls';
+      if (u.includes('.flv')) return 'flv';
+      if (u.includes('.mp4') || u.includes('format=fmp4')) return 'mp4';
+      if (u.includes('.webm')) return 'webm';
+      if (u.includes('.mjpg') || u.includes('.mjpeg')) return 'mjpeg';
+      return 'unknown';
     }
 
-    const videoUrl = getStreamUrlFromHash();
-    const videoElement = document.getElementById('videoElement');
+    function autoFullscreen(video) {
+      const reqFS = video.requestFullscreen || video.webkitRequestFullscreen || video.msRequestFullscreen;
+      if (reqFS) reqFS.call(video);
+    }
 
-    if (!videoUrl) {
-      alert("Tambahkan URL streaming di belakang #. Contoh: index.html#https://example.com/video.m3u8");
-    } else {
-      const isFlv = videoUrl.endsWith('.flv');
-      const isM3u8 = videoUrl.endsWith('.m3u8');
-      const isMp4 = videoUrl.endsWith('.mp4') || videoUrl.includes('format=fmp4');
-      const isWebm = videoUrl.endsWith('.webm');
-      const isMjpeg = videoUrl.includes('.mjpg') || videoUrl.includes('.mjpeg') || videoUrl.includes('mjpeg');
+    window.onload = function () {
+      const hash = decodeURIComponent(location.hash.substring(1));
+      if (!hash) return alert('Tambahkan URL video setelah tanda # di URL');
 
-      if (isFlv && flvjs.isSupported()) {
+      const video = document.getElementById('player');
+      const type = getVideoType(hash);
+
+      if (type === 'hls' && Hls.isSupported()) {
+        const hls = new Hls();
+        hls.loadSource(hash);
+        hls.attachMedia(video);
+      } else if (type === 'flv' && flvjs.isSupported()) {
         const flvPlayer = flvjs.createPlayer({
           type: 'flv',
-          url: videoUrl,
+          url: hash
         }, {
-          enableStashBuffer: false,
-          isLive: true
+          isLive: true,
+          enableStashBuffer: false
         });
-
-        flvPlayer.attachMediaElement(videoElement);
+        flvPlayer.attachMediaElement(video);
         flvPlayer.load();
         flvPlayer.play();
-        videoElement.requestFullscreen?.();
-
-      } else if (isMjpeg) {
-        // MJPEG manual fallback via <img>
-        const img = document.createElement('img');
-        img.src = videoUrl;
-        img.style.width = '100%';
-        img.style.height = '100%';
-        img.style.objectFit = 'contain';
-        const container = document.getElementById('videoContainer');
-        container.innerHTML = ''; // Clear existing video tag
-        container.appendChild(img);
       } else {
-        // Default: Use Video.js
-        const player = videojs(videoElement);
-        let type = 'application/x-mpegURL';
-        if (isMp4) type = 'video/mp4';
-        else if (isWebm) type = 'video/webm';
-
-        player.src({ src: videoUrl, type });
-        player.ready(() => {
-          player.play().catch(err => console.warn("Autoplay gagal:", err));
-          player.requestFullscreen?.();
-        });
+        video.src = hash;
       }
+
+      video.autoplay = true;
+      video.muted = true;
+      video.playsInline = true;
+
+      video.addEventListener('canplay', () => {
+        video.play();
+        autoFullscreen(video);
+      });
     }
   </script>
 </body>
